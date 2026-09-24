@@ -25,7 +25,7 @@ const SLOT_NORMALS = [
 ];
 
 const ACCENT = 0xffd23f;
-const GHOST = 0x7ab8ff;
+const GHOST = 0x4f6c96;
 
 export class Cube3D {
   private scene = new THREE.Scene();
@@ -179,6 +179,15 @@ export class Cube3D {
       }
       this.pivot.setRotationFromAxisAngle(n, angle);
       if (phase > 0.97) this.releasePivot();
+
+      // comet dot loops tail->head along the arrow arc: shows direction
+      const markers = this.arrow?.userData.markers as
+        | { curve: THREE.CatmullRomCurve3; mesh: THREE.Mesh }[]
+        | undefined;
+      if (markers) {
+        const p = (a.t % 1.1) / 1.1;
+        for (const m of markers) m.mesh.position.copy(m.curve.getPoint(p));
+      }
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -200,13 +209,11 @@ function buildArrow(face: Face, ccw: boolean, half: boolean, ghost: boolean): TH
 
   const group = new THREE.Group();
   const color = ghost ? GHOST : ACCENT;
-  const opacity = ghost ? 0.3 : 0.95;
-  const R = ghost ? 1.75 : 1.6;
-  const tube = ghost ? 0.035 : 0.06;
-  const lift = ghost ? 1.58 : 1.52;
-  const mat = new THREE.MeshBasicMaterial({
-    color, transparent: true, opacity, depthTest: !ghost,
-  });
+  const R = ghost ? 1.66 : 1.6;
+  const tube = ghost ? 0.034 : 0.062;
+  const lift = ghost ? 1.62 : 1.5;
+  const mat = new THREE.MeshBasicMaterial({ color });
+  const markers: { curve: THREE.CatmullRomCurve3; mesh: THREE.Mesh }[] = [];
 
   const spans: [number, number][] = half
     ? [[-2.4, 0.4], [Math.PI - 2.4, Math.PI + 0.4]] // two opposing arcs for 180°
@@ -216,7 +223,7 @@ function buildArrow(face: Face, ccw: boolean, half: boolean, ghost: boolean): TH
     const from = ccw ? t0 : t1;
     const to = ccw ? t1 : t0;
     const pts: THREE.Vector3[] = [];
-    const steps = 40;
+    const steps = 64;
     for (let i = 0; i <= steps; i++) {
       const t = from + ((to - from) * i) / steps;
       pts.push(new THREE.Vector3()
@@ -225,16 +232,28 @@ function buildArrow(face: Face, ccw: boolean, half: boolean, ghost: boolean): TH
         .addScaledVector(n, lift));
     }
     const curve = new THREE.CatmullRomCurve3(pts);
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, tube, 8), mat));
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, tube, 12), mat));
 
     // arrowhead at the sweep end, pointing along the tangent
     const end = pts[pts.length - 1];
     const prev = pts[pts.length - 2];
     const tang = end.clone().sub(prev).normalize();
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(tube * 3.2, tube * 8, 10), mat);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(tube * 3.4, tube * 9, 12), mat);
     cone.position.copy(end);
     cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tang);
     group.add(cone);
+
+    // bright comet that travels the arc (main arrow only)
+    if (!ghost) {
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.085, 16, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfff4c4 })
+      );
+      dot.position.copy(pts[0]);
+      group.add(dot);
+      markers.push({ curve, mesh: dot });
+    }
   }
+  group.userData.markers = markers;
   return group;
 }
