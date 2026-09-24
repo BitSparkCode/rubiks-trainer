@@ -12,9 +12,29 @@ static site (GitHub Pages friendly).
 
 ![rubiks-trainer in action](assets/demo.gif)
 
-The 3D view mirrors the physical cube's orientation as tracked by the
-webcam, animates the expected turn with a rotational arrow, and ghosts
-the following move so you can look ahead while executing.
+## Features
+
+- **Continuous tracking** — no step-by-step scanning. Tumble the cube
+  freely; the app keeps measuring every frame and files each sticker
+  sighting into the right slot until all 54 are known.
+- **Live 3D mirror** — the virtual cube rotates to match how you're
+  physically holding the real one, so the display always matches your
+  hands.
+- **Guided solve** — the solver (cubing.js two-phase, typically ~20
+  moves) produces the full sequence up front. The current move gets a
+  bold rotational arrow + looping turn animation on the 3D cube.
+- **Lookahead** — the *following* move is shown as a second, subdued
+  arrow so you can pre-position your fingers, like watching ahead in
+  speedsolving.
+- **Move auto-detection** — the app watches each face's 3×3 pattern and
+  detects quarter/half turns as you execute them, advancing the solution
+  automatically. Manual **Did it →** / **Undo** buttons and a toggle are
+  always available.
+- **Solve timer** — starts when the scan completes, stops at solved.
+- **On-screen overlay** — detected grids, face letters, and a direction
+  arrow are drawn directly on the webcam feed.
+- **Private by design** — everything runs in your browser tab; the
+  camera stream never leaves your machine.
 
 ## Quick start
 

@@ -64,7 +64,7 @@ export class Cube3D {
       const n = NORMAL[face];
       const m = new THREE.Mesh(
         geo,
-        new THREE.MeshLambertMaterial({ color: 0x333333, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide })
       );
       m.position.set(
         pos[0] * 0.98 + n[0] * 0.47,
@@ -95,7 +95,7 @@ export class Cube3D {
   setState(facelets: string, colorOf: (f: Face) => [number, number, number] | null) {
     for (let i = 0; i < 54; i++) {
       const rgb = colorOf(facelets[i] as Face) ?? [40, 40, 48];
-      (this.stickers[i].material as THREE.MeshLambertMaterial).color.setRGB(
+      (this.stickers[i].material as THREE.MeshBasicMaterial).color.setRGB(
         rgb[0] / 255, rgb[1] / 255, rgb[2] / 255
       );
     }

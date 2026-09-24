@@ -18,7 +18,7 @@ const { GIFEncoder, quantize, applyPalette } = gifencPkg;
 const PORT = 5199;
 const FRAMES = 70;
 const INTERVAL_MS = 90;
-const W = 640, H = 480;
+const W = 1000, H = 560;
 const OUT = fileURLToPath(new URL("../assets/demo.gif", import.meta.url));
 
 const vite = spawn("npx", ["vite", "preview", "--port", String(PORT), "--strictPort"], {
