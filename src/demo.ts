@@ -17,8 +17,8 @@ const CSS: Record<Face, string> = {
   D: "#f5cf3c", L: "#f08c28", B: "#3264dc",
 };
 
-const SCRAMBLE = "R U R' U' R' F R F'";
-const MOVES = "F R' F' R U R U' R'".split(" ");
+const SCRAMBLE = "R U R' U'";
+const MOVES = "U R U' R'".split(" "); // exact inverse of SCRAMBLE
 
 const cube = new Cube3D(document.getElementById("cube3d") as HTMLCanvasElement);
 const nextMoveEl = document.getElementById("next-move")!;
@@ -147,7 +147,7 @@ function step() {
       cube.setState(state, (f) => STD[f]);
     }
     idx++;
-    if (idx > MOVES.length + 1) { // brief solved pause, then rescramble
+    if (idx > MOVES.length) { // one solved beat, then rescramble
       idx = 0;
       state = applyMove(SOLVED.slice(), SCRAMBLE).join("");
       cube.setState(state, (f) => STD[f]);
