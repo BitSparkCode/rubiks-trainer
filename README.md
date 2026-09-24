@@ -8,6 +8,14 @@ the solution as it sees you turn faces.
 Fully client-side: no backend, no video leaves your machine. Works as a
 static site (GitHub Pages friendly).
 
+**Live demo: [bitsparkcode.github.io/rubiks-trainer](https://bitsparkcode.github.io/rubiks-trainer/)**
+
+![rubiks-trainer in action](assets/demo.gif)
+
+The 3D view mirrors the physical cube's orientation as tracked by the
+webcam, animates the expected turn with a rotational arrow, and ghosts
+the following move so you can look ahead while executing.
+
 ## Quick start
 
 ```sh
@@ -58,7 +66,12 @@ next step (or press **Space** / click **Did it →**).
 ### Rendering
 
 - `src/render/cube3d.ts` — Three.js model mirroring the tracked state and
-  looping a preview animation of the next move.
+  physical orientation, looping a preview animation of the next move
+  with a rotational arrow, plus a ghosted arrow for the move after that
+  (lookahead).
+- `demo.html` / `src/demo.ts` — standalone demo of the 3D view driving a
+  sample solution; `npm run demo:record` re-records `assets/demo.gif`
+  (requires local Chrome).
 - Overlay canvas draws detected grids, face letters, and a direction
   arrow for the expected move on the live video.
 
@@ -83,6 +96,8 @@ next step (or press **Space** / click **Did it →**).
 - `npm run build` — typecheck + production build (`dist/`)
 - `npm run verify:moves` — sanity-check move tables and the
   facelet→KPattern conversion against cubing.js
+- `npm run demo:record` — re-record the README demo GIF via headless
+  Chrome (runs `vite preview` + `demo.html`)
 
 ## License
 
