@@ -1,0 +1,30 @@
+{
+  "name": "rubiks-trainer",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "verify:moves": "node scripts/check-moves.mjs"
+  },
+  "keywords": [
+    "rubiks-cube",
+    "webcam",
+    "solver",
+    "computer-vision",
+    "three.js"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "Real-time Rubik's Cube trainer — webcam tracking + live solve guidance",
+  "type": "module",
+  "dependencies": {
+    "cubing": "^0.56.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^6.4.3"
+  }
+}

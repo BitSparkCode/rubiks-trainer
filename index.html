@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>rubiks-trainer — real-time webcam cube solver</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>rubiks-trainer</h1>
+      <span id="status" class="status">camera off</span>
+    </header>
+
+    <main>
+      <section class="cam-pane">
+        <div class="cam-wrap">
+          <video id="cam" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+        <div class="controls">
+          <button id="btn-cam">Start camera</button>
+          <button id="btn-rescan" disabled>Rescan</button>
+          <label class="toggle">
+            <input type="checkbox" id="chk-autodetect" checked disabled />
+            move auto-detection
+          </label>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div id="scan-panel">
+          <h2>1 · Scan</h2>
+          <p class="hint">Show the cube to the camera and rotate it slowly until all 54 stickers are seen.</p>
+          <div class="progress"><div id="scan-bar"></div></div>
+          <div id="mini-faces"></div>
+        </div>
+
+        <div id="solve-panel" hidden>
+          <h2>2 · Solve</h2>
+          <div id="next-move" class="next-move">–</div>
+          <div class="controls">
+            <button id="btn-next" disabled>Did it →</button>
+            <button id="btn-undo" disabled>Undo</button>
+          </div>
+          <ol id="move-list" class="move-list"></ol>
+        </div>
+
+        <div class="cube-wrap"><canvas id="cube3d"></canvas></div>
+      </aside>
+    </main>
+
+    <canvas id="detector" hidden></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
