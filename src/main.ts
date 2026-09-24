@@ -18,6 +18,7 @@ const video = $<HTMLVideoElement>("cam");
 const overlay = $<HTMLCanvasElement>("overlay");
 const detector = $<HTMLCanvasElement>("detector");
 const statusEl = $("status");
+const timerEl = $("timer");
 const btnCam = $<HTMLButtonElement>("btn-cam");
 const btnRescan = $<HTMLButtonElement>("btn-rescan");
 const btnNext = $<HTMLButtonElement>("btn-next");
@@ -47,7 +48,22 @@ const app = {
   lastLetters: [] as (Face | null)[],
   /** scale detection -> video coords */
   scale: 1,
+  solveStart: 0,
+  solveEnd: 0,
+  timerId: 0,
 };
+
+function fmtTime(ms: number): string {
+  const t = ms / 1000;
+  const m = Math.floor(t / 60);
+  const s = (t % 60).toFixed(1).padStart(4, "0");
+  return `${m}:${s}`;
+}
+
+function timerTick() {
+  const end = app.solveEnd || performance.now();
+  timerEl.textContent = fmtTime(end - app.solveStart);
+}
 
 function setStatus(s: string) { statusEl.textContent = s; }
 
@@ -99,6 +115,7 @@ function tick() {
 
   const { letters, events } = app.tracker.update(faces);
   app.lastLetters = letters;
+  app.cube3d?.syncOrientation(letters);
 
   drawOverlay(faces, letters);
 
@@ -134,6 +151,9 @@ function scanStep() {
         solvePanel.hidden = false;
         btnNext.disabled = false;
         btnUndo.disabled = true;
+        app.solveStart = performance.now();
+        app.solveEnd = 0;
+        app.timerId = window.setInterval(timerTick, 100);
         renderMoveList();
         updateNextMove();
         setStatus("solve along with the camera");
@@ -210,8 +230,11 @@ function advanceMove() {
   updateNextMove();
   if (!expectedMove()) {
     app.mode = "done";
+    app.solveEnd = performance.now();
+    clearInterval(app.timerId);
+    timerTick();
     setStatus("solved!");
-    app.cube3d?.previewMove(null);
+    app.cube3d?.previewMoves(null, null);
   }
 }
 
@@ -234,21 +257,26 @@ function renderMoveList() {
     li.textContent = m;
     if (i < app.moveIdx) li.className = "done";
     else if (i === app.moveIdx) li.className = "now";
+    else if (i === app.moveIdx + 1) li.className = "next";
     moveListEl.appendChild(li);
   });
 }
 
 function updateNextMove() {
   const mv = expectedMove();
-  if (!mv) { nextMoveEl.innerHTML = "✓"; app.cube3d?.previewMove(null); return; }
+  const nxt = app.moveIdx + 1 < app.solution.length ? app.solution[app.moveIdx + 1] : null;
+  if (!mv) { nextMoveEl.innerHTML = "✓"; app.cube3d?.previewMoves(null, null); return; }
   const f = mv[0] as Face;
   const arrow = expectedDir(mv) === "cw" ? "↻" : expectedDir(mv) === "ccw" ? "↺" : "↻↻";
-  nextMoveEl.innerHTML = `<span class="chip" style="background:${faceCss(f)}"></span> ${mv} <small>${arrow}</small>`;
+  const then = nxt
+    ? `<span class="then">then <span class="chip" style="background:${faceCss(nxt[0] as Face)}"></span>${nxt}</span>`
+    : "";
+  nextMoveEl.innerHTML = `<span class="chip" style="background:${faceCss(f)}"></span> ${mv} <small>${arrow}</small> ${then}`;
   app.cube3d?.setState(app.facelets, (ff) => {
     const lab = app.tracker.faceColorLab(ff);
     return lab ? labToRgb(lab) : null;
   });
-  app.cube3d?.previewMove(mv);
+  app.cube3d?.previewMoves(mv, nxt);
 }
 
 let flashTimer = 0;
@@ -341,6 +369,9 @@ btnCam.addEventListener("click", () => {
   startCamera();
 });
 btnRescan.addEventListener("click", () => {
+  clearInterval(app.timerId);
+  timerEl.textContent = "0:00.0";
+  app.cube3d?.previewMoves(null, null);
   app.tracker.reset();
   app.mode = "scan";
   app.moveIdx = 0;
