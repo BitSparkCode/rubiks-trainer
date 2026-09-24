@@ -17,8 +17,8 @@ const CSS: Record<Face, string> = {
   D: "#f5cf3c", L: "#f08c28", B: "#3264dc",
 };
 
-const SCRAMBLE = "R U R' U'";
-const MOVES = "U R U' R'".split(" "); // exact inverse of SCRAMBLE
+const SCRAMBLE = "R U' L2 B' R2 F";
+const MOVES = "F' R2 B L2 U R'".split(" "); // exact inverse of SCRAMBLE
 
 const cube = new Cube3D(document.getElementById("cube3d") as HTMLCanvasElement);
 const nextMoveEl = document.getElementById("next-move")!;
@@ -109,7 +109,11 @@ function fmt(ms: number) {
   const s = ms / 1000;
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 }
-setInterval(() => { timerEl.textContent = fmt(performance.now() - t0); }, 100);
+let solved = false;
+let solvedAt = 0;
+setInterval(() => {
+  timerEl.textContent = fmt((solved ? solvedAt : performance.now()) - t0);
+}, 100);
 
 function render() {
   moveListEl.innerHTML = "";
@@ -147,15 +151,17 @@ function step() {
       cube.setState(state, (f) => STD[f]);
     }
     idx++;
-    if (idx > MOVES.length) { // one solved beat, then rescramble
+    if (idx === MOVES.length) { solved = true; solvedAt = performance.now(); }
+    if (idx > MOVES.length + 1) { // dwell on the solved cube, then rescramble
       idx = 0;
+      solved = false;
       state = applyMove(SOLVED.slice(), SCRAMBLE).join("");
       cube.setState(state, (f) => STD[f]);
       t0 = performance.now();
       statusEl.textContent = "solving — move auto-detect on";
     }
-  }, 620);
-  window.setTimeout(step, 2200);
+  }, 700);
+  window.setTimeout(step, 2600);
 }
 
 drawFakeCam();

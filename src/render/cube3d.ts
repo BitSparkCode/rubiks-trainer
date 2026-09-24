@@ -54,7 +54,7 @@ export class Cube3D {
     this.scene.add(this.cubies);
     const core = new THREE.Mesh(
       new THREE.BoxGeometry(2.86, 2.86, 2.86),
-      new THREE.MeshLambertMaterial({ color: 0x14141c })
+      new THREE.MeshLambertMaterial({ color: 0x2b2b36 })
     );
     this.cubies.add(core);
 
