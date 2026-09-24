@@ -62,7 +62,10 @@ export class Cube3D {
     for (let i = 0; i < 54; i++) {
       const { face, pos } = FACELET_POS[i];
       const n = NORMAL[face];
-      const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x333333 }));
+      const m = new THREE.Mesh(
+        geo,
+        new THREE.MeshLambertMaterial({ color: 0x333333, side: THREE.DoubleSide })
+      );
       m.position.set(
         pos[0] * 0.98 + n[0] * 0.47,
         pos[1] * 0.98 + n[1] * 0.47,

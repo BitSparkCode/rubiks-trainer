@@ -25,14 +25,19 @@ let idx = 0;
 // fixed pleasant orientation: U on top slot, R bottom-right, F bottom-left
 cube.syncOrientation(["U", "R", "F"]);
 
+cube.setState(state, (f) => STD[f]);
+
 function step() {
   const cur = moves[idx % moves.length];
   const nxt = moves[(idx + 1) % moves.length];
-  cube.setState(state, (f) => STD[f]);
   cube.previewMoves(cur, nxt);
   cap.textContent = `next: ${cur}   then: ${nxt}`;
-  // perform the move on the model state after the hint plays
-  window.setTimeout(() => { state = applyMove(state.split(""), cur).join(""); }, 1200);
+  // recolor right as the turn-out finishes (~40% of the 1.5 s period)
+  // so the stickers' new colors appear to rotate into place
+  window.setTimeout(() => {
+    state = applyMove(state.split(""), cur).join("");
+    cube.setState(state, (f) => STD[f]);
+  }, 620);
   idx++;
   window.setTimeout(step, 2200);
 }
