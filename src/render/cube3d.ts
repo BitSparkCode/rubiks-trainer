@@ -142,6 +142,7 @@ export class Cube3D {
    * commit the rotation so sticker colors travel with their cubies.
    */
   performMove(move: string) {
+    this.releasePivot();
     this.anim = null;
     const face = move[0] as Face;
     const dir = (move.includes("'") ? 1 : -1) as 1 | -1;
@@ -158,6 +159,17 @@ export class Cube3D {
   }
 
   private releasePivot() {
+    // a performed turn interrupted mid-flight must still be committed —
+    // dropping the rotation would desync the model from the move history
+    if (this.perform) {
+      const p = this.perform;
+      this.pivot.setRotationFromAxisAngle(
+        AXIS_VEC[p.face], (p.half ? Math.PI : Math.PI / 2) * p.dir
+      );
+      this.perform = null;
+      this.commitTurn();
+      return;
+    }
     while (this.pivot.children.length) this.cubies.add(this.pivot.children[0]);
     this.pivot.rotation.set(0, 0, 0);
   }
@@ -196,8 +208,10 @@ export class Cube3D {
         pos[2] * 0.98 + n[2] * 0.47
       );
       s.quaternion.setFromUnitVectors(Z, new THREE.Vector3(...n));
+      if (reindexed[best]) console.error("commitTurn: slot collision at", best);
       reindexed[best] = s;
     }
+    if (reindexed.some((s) => !s)) console.error("commitTurn: holes in reindex");
     this.stickers = reindexed;
   }
 

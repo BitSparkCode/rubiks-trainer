@@ -21,6 +21,7 @@ const SCRAMBLE = "R U' L2 B' R2 F";
 const MOVES = "F' R2 B L2 U R'".split(" "); // exact inverse of SCRAMBLE
 
 const cube = new Cube3D(document.getElementById("cube3d") as HTMLCanvasElement);
+(window as unknown as { __cube: Cube3D }).__cube = cube;
 const nextMoveEl = document.getElementById("next-move")!;
 const moveListEl = document.getElementById("move-list")!;
 const timerEl = document.getElementById("timer")!;
@@ -163,4 +164,4 @@ function step() {
 }
 
 drawFakeCam();
-step();
+if (!location.search.includes("manual")) step();

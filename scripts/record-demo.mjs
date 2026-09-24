@@ -16,9 +16,8 @@ import gifencPkg from "gifenc";
 const { GIFEncoder, quantize, applyPalette } = gifencPkg;
 
 const PORT = 5199;
-const FRAMES = 195;
-const INTERVAL_MS = 110;
 const W = 880, H = 495;
+const SOLVED_DWELL_MS = 2600; // stop this long after "✓" appears
 const OUT = fileURLToPath(new URL("../assets/demo.gif", import.meta.url));
 
 const vite = spawn("npx", ["vite", "preview", "--port", String(PORT), "--strictPort"], {
@@ -62,27 +61,40 @@ try {
   });
   const page = await browser.newPage();
   await page.goto(`http://localhost:${PORT}/demo.html`, { waitUntil: "networkidle0" });
-  await new Promise((r) => setTimeout(r, 1500)); // let orientation settle
+  await new Promise((r) => setTimeout(r, 800)); // let orientation settle
 
-  const pngs = [];
-  for (let i = 0; i < FRAMES; i++) {
-    pngs.push(PNG.sync.read(await page.screenshot({ type: "png" })));
-    process.stdout.write(`\rframe ${i + 1}/${FRAMES}`);
-    await new Promise((r) => setTimeout(r, INTERVAL_MS));
+  // capture until the solved "✓" has been visible for SOLVED_DWELL_MS;
+  // frame delays use real timestamps so the GIF plays at true speed
+  // regardless of how slow each screenshot is
+  const shots = [];
+  const t0 = Date.now();
+  let last = t0;
+  let solvedSince = null;
+  for (let i = 0; i < 600; i++) {
+    const png = PNG.sync.read(await page.screenshot({ type: "png" }));
+    const now = Date.now();
+    shots.push({ png, delay: Math.max(30, now - last) });
+    last = now;
+    process.stdout.write(`\rframe ${i + 1} @ ${((now - t0) / 1000).toFixed(1)}s`);
+
+    const txt = await page.$eval("#next-move", (el) => el.textContent.trim());
+    if (txt === "✓") solvedSince ??= now;
+    else solvedSince = null;
+    if (solvedSince && now - solvedSince > SOLVED_DWELL_MS) break;
   }
   await browser.close();
 
   // one shared palette for the whole clip -> no per-frame color flicker
   const sampleEvery = 4;
   const parts = [];
-  for (let i = 0; i < pngs.length; i += sampleEvery) parts.push(pngs[i].data);
+  for (let i = 0; i < shots.length; i += sampleEvery) parts.push(shots[i].png.data);
   const palette = quantize(Buffer.concat(parts), 256);
 
   const gif = GIFEncoder();
-  for (const png of pngs) {
+  for (const { png, delay } of shots) {
     const small = downscale(png, 2);
     const idx = applyPalette(small.data, palette);
-    gif.writeFrame(idx, small.width, small.height, { palette, delay: INTERVAL_MS });
+    gif.writeFrame(idx, small.width, small.height, { palette, delay });
   }
   gif.finish();
   mkdirSync(dirname(OUT), { recursive: true });
