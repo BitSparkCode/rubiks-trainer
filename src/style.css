@@ -42,6 +42,7 @@ main {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 38%);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -70,7 +71,7 @@ main {
   padding: 12px 16px 16px;
   border-left: 1px solid #262633;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .cam-wrap {
@@ -80,7 +81,8 @@ main {
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 4 / 3;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 .cam-wrap video, .cam-wrap canvas {
   position: absolute;
@@ -90,7 +92,13 @@ main {
   object-fit: contain;
 }
 
-.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+
+#scan-panel, #solve-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 button {
   background: var(--panel);
   color: var(--fg);
