@@ -5,7 +5,7 @@
  */
 
 import { Cube3D } from "./render/cube3d";
-import { applyMove, SOLVED } from "./cube/sim";
+import { applyAlg, SOLVED } from "./cube/sim";
 import { Face } from "./cube/geom";
 
 const STD: Record<Face, [number, number, number]> = {
@@ -17,8 +17,8 @@ const CSS: Record<Face, string> = {
   D: "#f5cf3c", L: "#f08c28", B: "#3264dc",
 };
 
-const SCRAMBLE = "R U' L2 B' R2 F";
-const MOVES = "F' R2 B L2 U R'".split(" "); // exact inverse of SCRAMBLE
+const SCRAMBLE = "F U' R2";
+const MOVES = "R2 U F'".split(" "); // exact inverse of SCRAMBLE
 
 const cube = new Cube3D(document.getElementById("cube3d") as HTMLCanvasElement);
 (window as unknown as { __cube: Cube3D }).__cube = cube;
@@ -27,7 +27,7 @@ const moveListEl = document.getElementById("move-list")!;
 const timerEl = document.getElementById("timer")!;
 const statusEl = document.getElementById("status")!;
 
-let state = applyMove(SOLVED.slice(), SCRAMBLE).join("");
+let state = applyAlg(SOLVED.slice(), SCRAMBLE).join("");
 let idx = 0;
 let t0 = performance.now();
 
@@ -142,26 +142,47 @@ function render() {
     `<span class="chip" style="background:${CSS[mv[0] as Face]}"></span> ${mv} <small>${arrow}</small> ${then}`;
   // arrows only (no looping hint) — the model performs the turn for real
   cube.previewMoves(mv, nxt ?? null, false);
-  cube.performMove(mv);
 }
 
-function step() {
-  render();
-  window.setTimeout(() => {
-    idx++;
-    if (idx === MOVES.length) { solved = true; solvedAt = performance.now(); }
-    if (idx > MOVES.length + 1) { // dwell on the solved cube, then rescramble
-      idx = 0;
-      solved = false;
-      // reset to a fresh scrambled state (also resnaps the model)
-      state = applyMove(SOLVED.slice(), SCRAMBLE).join("");
-      cube.setState(state, (f) => STD[f]);
-      t0 = performance.now();
-      statusEl.textContent = "solving — move auto-detect on";
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** nearest standard color — used to verify the model's actual state */
+function classify(c: [number, number, number]): string {
+  let best = "?", bd = Infinity;
+  for (const [f, v] of Object.entries(STD)) {
+    const d = (c[0] - v[0]) ** 2 + (c[1] - v[1]) ** 2 + (c[2] - v[2]) ** 2;
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
+}
+
+// The loop awaits every performed turn, so sequencing stays correct no
+// matter how slow the frame rate is (e.g. while screenshots are taken).
+async function play() {
+  for (;;) {
+    for (idx = 0; idx < MOVES.length; idx++) {
+      render();
+      await cube.performMove(MOVES[idx]!);
+      await sleep(1400); // readable beat between turns
     }
-  }, 700);
-  window.setTimeout(step, 2600);
+    render(); // idx == MOVES.length -> "✓"
+    solved = true; solvedAt = performance.now();
+    // the label must tell the truth: verify the model actually reached
+    // the solved state, snap it if a dropped frame ever desynced it
+    const actual = cube.debugState(classify);
+    if (actual !== SOLVED.join("")) {
+      console.error("demo: model desynced:", actual);
+      cube.setState(SOLVED.join(""), (f) => STD[f]);
+    }
+    await sleep(4000); // dwell on the solved cube
+    idx = 0;
+    solved = false;
+    state = applyAlg(SOLVED.slice(), SCRAMBLE).join("");
+    cube.setState(state, (f) => STD[f]);
+    t0 = performance.now();
+    statusEl.textContent = "solving — move auto-detect on";
+  }
 }
 
 drawFakeCam();
-if (!location.search.includes("manual")) step();
+if (!location.search.includes("manual")) void play();

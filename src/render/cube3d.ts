@@ -37,7 +37,9 @@ export class Cube3D {
   private arrow: THREE.Group | null = null;
   private ghostArrow: THREE.Group | null = null;
   private anim: { face: Face; dir: 1 | -1; half: boolean; t: number } | null = null;
-  private perform: { face: Face; dir: 1 | -1; half: boolean; t: number } | null = null;
+  private perform: {
+    face: Face; dir: 1 | -1; half: boolean; t: number; done: () => void;
+  } | null = null;
   private targetQuat: THREE.Quaternion | null = null;
   private idleFrames = 0;
   private lastTime = performance.now();
@@ -92,8 +94,19 @@ export class Cube3D {
     this.camera.updateProjectionMatrix();
   }
 
+  /** debug helper: facelet string reconstructed from sticker positions+colors */
+  debugState(colorOf: (c: [number, number, number]) => string): string {
+    return this.stickers.map((s) => {
+      const c = (s.material as THREE.MeshBasicMaterial).color;
+      return colorOf([Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]);
+    }).join("");
+  }
+
   /** repaint stickers from the 54-char facelet state */
   setState(facelets: string, colorOf: (f: Face) => [number, number, number] | null) {
+    ((window as unknown as { __dbg: string[] }).__dbg ??= []).push(
+      `setState t=${performance.now().toFixed(0)}`
+    );
     for (let i = 0; i < 54; i++) {
       const rgb = colorOf(facelets[i] as Face) ?? [40, 40, 48];
       (this.stickers[i].material as THREE.MeshBasicMaterial).color.setRGB(
@@ -140,13 +153,25 @@ export class Cube3D {
   /**
    * Physically perform a move on the model: rotate the layer once, then
    * commit the rotation so sticker colors travel with their cubies.
+   * Resolves only after the turn has been committed — callers that drive
+   * a move sequence should await it instead of relying on timers.
    */
-  performMove(move: string) {
+  performMove(move: string): Promise<void> {
     this.releasePivot();
     this.anim = null;
     const face = move[0] as Face;
     const dir = (move.includes("'") ? 1 : -1) as 1 | -1;
-    this.perform = { face, dir, half: move.includes("2"), t: 0 };
+    // select the layer NOW, not lazily in frame(): if the perform gets
+    // interrupted before a single frame runs, commitTurn still needs the
+    // pivot populated to apply the permutation
+    const n = AXIS_VEC[face];
+    for (let i = 0; i < 54; i++) {
+      const { pos } = FACELET_POS[i];
+      if (pos[0] * n.x + pos[1] * n.y + pos[2] * n.z === 1) this.pivot.add(this.stickers[i]);
+    }
+    return new Promise((resolve) => {
+      this.perform = { face, dir, half: move.includes("2"), t: 0, done: resolve };
+    });
   }
 
   private setArrow(move: string | null, ghost: boolean) {
@@ -168,6 +193,7 @@ export class Cube3D {
       );
       this.perform = null;
       this.commitTurn();
+      p.done();
       return;
     }
     while (this.pivot.children.length) this.cubies.add(this.pivot.children[0]);
@@ -233,15 +259,8 @@ export class Cube3D {
       p.t += dt;
       const k = Math.min(1, p.t / 0.6);
       const angle = (p.half ? Math.PI : Math.PI / 2) * p.dir * easeInOut(k);
-      const n = AXIS_VEC[p.face];
-      if (this.pivot.children.length === 0) {
-        for (let i = 0; i < 54; i++) {
-          const { pos } = FACELET_POS[i];
-          if (pos[0] * n.x + pos[1] * n.y + pos[2] * n.z === 1) this.pivot.add(this.stickers[i]);
-        }
-      }
-      this.pivot.setRotationFromAxisAngle(n, angle);
-      if (k >= 1) { this.commitTurn(); this.perform = null; }
+      this.pivot.setRotationFromAxisAngle(AXIS_VEC[p.face], angle);
+      if (k >= 1) { this.commitTurn(); this.perform = null; p.done(); }
     }
 
     // turn animation: turn out (0-40%), hold (40-65%), return (65-95%), rest
