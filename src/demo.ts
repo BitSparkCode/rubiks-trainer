@@ -139,22 +139,20 @@ function render() {
     : "";
   nextMoveEl.innerHTML =
     `<span class="chip" style="background:${CSS[mv[0] as Face]}"></span> ${mv} <small>${arrow}</small> ${then}`;
-  cube.previewMoves(mv, nxt ?? null);
+  // arrows only (no looping hint) — the model performs the turn for real
+  cube.previewMoves(mv, nxt ?? null, false);
+  cube.performMove(mv);
 }
 
 function step() {
   render();
   window.setTimeout(() => {
-    // recolor right as the turn-out finishes (~40% of the 1.5 s period)
-    if (MOVES[idx]) {
-      state = applyMove(state.split(""), MOVES[idx]).join("");
-      cube.setState(state, (f) => STD[f]);
-    }
     idx++;
     if (idx === MOVES.length) { solved = true; solvedAt = performance.now(); }
     if (idx > MOVES.length + 1) { // dwell on the solved cube, then rescramble
       idx = 0;
       solved = false;
+      // reset to a fresh scrambled state (also resnaps the model)
       state = applyMove(SOLVED.slice(), SCRAMBLE).join("");
       cube.setState(state, (f) => STD[f]);
       t0 = performance.now();

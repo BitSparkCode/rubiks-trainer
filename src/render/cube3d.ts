@@ -37,6 +37,7 @@ export class Cube3D {
   private arrow: THREE.Group | null = null;
   private ghostArrow: THREE.Group | null = null;
   private anim: { face: Face; dir: 1 | -1; half: boolean; t: number } | null = null;
+  private perform: { face: Face; dir: 1 | -1; half: boolean; t: number } | null = null;
   private targetQuat: THREE.Quaternion | null = null;
   private idleFrames = 0;
   private lastTime = performance.now();
@@ -126,14 +127,25 @@ export class Cube3D {
   }
 
   /** show arrows + turn animation for the current move; ghost arrow for next */
-  previewMoves(current: string | null, next: string | null) {
+  previewMoves(current: string | null, next: string | null, animate = true) {
     this.releasePivot();
     this.setArrow(current, false);
     this.setArrow(next, true);
-    if (!current) { this.anim = null; return; }
+    if (!current || !animate) { this.anim = null; return; }
     const face = current[0] as Face;
     const dir = (current.includes("'") ? 1 : -1) as 1 | -1;
     this.anim = { face, dir, half: current.includes("2"), t: 0 };
+  }
+
+  /**
+   * Physically perform a move on the model: rotate the layer once, then
+   * commit the rotation so sticker colors travel with their cubies.
+   */
+  performMove(move: string) {
+    this.anim = null;
+    const face = move[0] as Face;
+    const dir = (move.includes("'") ? 1 : -1) as 1 | -1;
+    this.perform = { face, dir, half: move.includes("2"), t: 0 };
   }
 
   private setArrow(move: string | null, ghost: boolean) {
@@ -150,6 +162,45 @@ export class Cube3D {
     this.pivot.rotation.set(0, 0, 0);
   }
 
+  /** bake the pivot rotation into the stickers and reindex them by slot */
+  private commitTurn() {
+    const q = this.pivot.quaternion.clone();
+    while (this.pivot.children.length) {
+      const s = this.pivot.children[0] as THREE.Mesh;
+      s.position.applyQuaternion(q);
+      s.quaternion.premultiply(q);
+      this.cubies.add(s);
+    }
+    this.pivot.rotation.set(0, 0, 0);
+
+    // reindex: stickers[i] must be the mesh now occupying facelet slot i,
+    // and snap positions/rotations to the exact canonical grid
+    const Z = new THREE.Vector3(0, 0, 1);
+    const reindexed: THREE.Mesh[] = new Array(54);
+    for (const s of this.stickers) {
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < 54; i++) {
+        const { face, pos } = FACELET_POS[i];
+        const n = NORMAL[face];
+        const dx = s.position.x - (pos[0] * 0.98 + n[0] * 0.47);
+        const dy = s.position.y - (pos[1] * 0.98 + n[1] * 0.47);
+        const dz = s.position.z - (pos[2] * 0.98 + n[2] * 0.47);
+        const d = dx * dx + dy * dy + dz * dz;
+        if (d < bd) { bd = d; best = i; }
+      }
+      const { face, pos } = FACELET_POS[best];
+      const n = NORMAL[face];
+      s.position.set(
+        pos[0] * 0.98 + n[0] * 0.47,
+        pos[1] * 0.98 + n[1] * 0.47,
+        pos[2] * 0.98 + n[2] * 0.47
+      );
+      s.quaternion.setFromUnitVectors(Z, new THREE.Vector3(...n));
+      reindexed[best] = s;
+    }
+    this.stickers = reindexed;
+  }
+
   private frame(now: number) {
     requestAnimationFrame((t) => this.frame(t));
     const dt = Math.min(0.05, (now - this.lastTime) / 1000);
@@ -160,6 +211,23 @@ export class Cube3D {
       this.cubies.quaternion.slerp(this.targetQuat, 1 - Math.pow(0.001, dt));
     } else if (++this.idleFrames > 60) {
       this.cubies.rotation.y += dt * 0.3;
+    }
+
+    // performed turn: rotate the layer once, then commit so colors move
+    if (this.perform) {
+      const p = this.perform;
+      p.t += dt;
+      const k = Math.min(1, p.t / 0.6);
+      const angle = (p.half ? Math.PI : Math.PI / 2) * p.dir * easeInOut(k);
+      const n = AXIS_VEC[p.face];
+      if (this.pivot.children.length === 0) {
+        for (let i = 0; i < 54; i++) {
+          const { pos } = FACELET_POS[i];
+          if (pos[0] * n.x + pos[1] * n.y + pos[2] * n.z === 1) this.pivot.add(this.stickers[i]);
+        }
+      }
+      this.pivot.setRotationFromAxisAngle(n, angle);
+      if (k >= 1) { this.commitTurn(); this.perform = null; }
     }
 
     // turn animation: turn out (0-40%), hold (40-65%), return (65-95%), rest
